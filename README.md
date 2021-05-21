@@ -15,3 +15,4 @@ actual link itself in HTML iframe framework which works pretty decently whenever
 
 ![Screenshot 2021-05-21 134502](https://user-images.githubusercontent.com/8619943/119177755-c3c0e400-ba3a-11eb-9d83-72c0b8ab548c.png)
 
+The file is actually not completely complete, however most of the functionality is there and the use of it needs work.
