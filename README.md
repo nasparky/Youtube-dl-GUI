@@ -11,3 +11,7 @@ Anyways here is the GUI for use, it provides a Queue specifically designed to wo
 whether it would be an audio or video file. This is not designed to spec as the options are just radio buttons. It also includes a terminal to
 be able to see where things went wrong and the general background logic going through. Another feature that is includes is the abliity to see a preview 
 actual link itself in HTML iframe framework which works pretty decently whenever a new link is added to the queue.
+
+
+![Screenshot 2021-05-21 134502](https://user-images.githubusercontent.com/8619943/119177755-c3c0e400-ba3a-11eb-9d83-72c0b8ab548c.png)
+
