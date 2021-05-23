@@ -1,12 +1,8 @@
-# -*- coding: utf-8 -*-
-#
-# Form implementation generated from reading ui file 'Project Files/YoutubeDL.ui'
-#
-# Created by: PyQt5 UI code generator 5.15.4
+# You will need to place your FFPMEG executable next to the youtube-dl application
+# For this purpose you may find the application location in your python scripts folder.
 
 import os
 import youtube_dl as yt
-from threading import Thread
 from collections import deque
 from datetime import datetime
 from PyQt5 import QtCore, QtGui, QtWidgets
@@ -35,19 +31,7 @@ def createDir():
 def download(link, progress_hook):
     address = link[0]
     type = link[1].replace("\n", "")
-    '''
-    ydl_opts = {
-        'outtmpl': path + name
-        'format': 'bestvideo[ext=mp4]/best+bestaudio[ext=m4a]/best[ext=mp4]/best',
-        'quiet' : False,
-        'postprocessors': [{
-            'key': 'FFmpegExtractAudio',
-            'preferredcodec': 'mp3',
-            'preferredquality': '192',
-        }],
-        'progress_hooks': [progress_hook],
-    }
-    '''
+    
     ydl_opts = {}
     if(type == "MP3"):
         ydl_opts = {
@@ -65,7 +49,62 @@ def download(link, progress_hook):
         }
     with yt.YoutubeDL(ydl_opts) as y:
         y.download([address])
-    
+
+# Worker Threads for the GUI
+class QWorker(QObject):
+    finished = pyqtSignal()
+    progress = pyqtSignal(float, int)
+    logger = pyqtSignal(str)
+    # Used as the parameters of run() since run() cannot accept any.
+    def __init__(self, queue=None):
+        super(QWorker, self).__init__()
+        self.queue = queue
+        self.logger.emit("Successfully created a new worker")
+
+    def run(self):
+        initial_length = len(self.queue)
+        while(len(self.queue) != 0):
+            link = self.queue.pop().split("|")
+            # Download Functionlity
+            self.logger.emit("Batch: {}/{} - {}".format((-1*(len(self.queue)))+initial_length, initial_length, link))
+            self.__download(link, self.__progress)
+        self.finished.emit()
+
+    def __progress(self, d):
+        if d['status'] == 'finished':
+            self.progress.emit(-1*1.0, 0)
+        if d['status'] == 'downloading':
+            p = d['_percent_str']
+            p = p.replace('%','')
+            self.progress.emit(float(p), d['eta'])
+
+    def __download(self, link, progress_hook):
+        print("Entering Function -Download-")
+        address = link[0]
+        type = link[1].replace("\n", "")
+        ydl_opts = {}
+        if(type == "MP3"):
+            ydl_opts = {
+            'outtmpl': 'Exports/%(title)s - %(id)s.%(ext)s',
+            'format': 'bestaudio/bestaudio[ext=m4a]/best',
+            'quiet' : True,
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'progress_hooks': [progress_hook],
+            }
+        elif(type == "MP4"):
+            ydl_opts = {
+            'outtmpl': 'Exports/%(title)s - %(id)s.%(ext)s',
+            'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
+            'quiet' : True,
+            'progress_hooks': [progress_hook],
+            }
+        with yt.YoutubeDL(ydl_opts) as y:
+            y.download([address])
+
 class Ui_MainWindow(object):
     # Does not effect the setup process
     def __init__(self):
@@ -171,11 +210,10 @@ class Ui_MainWindow(object):
         self.label_6.setText(_translate("MainWindow", "ETA: 0s"))
 
     def triggerEventsUi(self):
-        #self.pushButton.clicked.connect(lambda _:self.textEdit.setText("Clicked"))
-        self.pushButton.clicked.connect(lambda _:Thread(target=self.__eventP1, daemon=True).run())
-        self.pushButton_2.clicked.connect(lambda _:self.__eventP2())
-        self.pushButton_3.clicked.connect(lambda _:self.__eventP3())
-        self.pushButton_4.clicked.connect(lambda _:self.__eventP4())
+        self.pushButton.clicked.connect(lambda: self.__eventP1())
+        self.pushButton_2.clicked.connect(lambda: self.__eventP2())
+        self.pushButton_3.clicked.connect(lambda: self.__eventP3())
+        self.pushButton_4.clicked.connect(lambda: self.__eventP4())
     
     def __recordTerminalEvent(self, text):
         new_text = "{}{} - {}".format(self.textEdit_2.toPlainText(), datetime.now().strftime("%H:%M:%S"), text+"\n")
@@ -187,6 +225,7 @@ class Ui_MainWindow(object):
             new_queue = self.textEdit.toPlainText()
             new_address = ""
             self.__recordTerminalEvent("Attempting to place text into queue.")
+            # Placing text inside of textEdit into an actual queue.
             for c in new_queue:
                 if(c == "\n"):
                     self.queue.append(new_address)
@@ -194,19 +233,47 @@ class Ui_MainWindow(object):
                 else:
                     new_address += c
             print(self.queue)
+            # Creating a New directory named export if needed
             self.__recordTerminalEvent(createDir())
             self.__recordTerminalEvent("Starting link download operation.")
-            initial_length = len(self.queue)
-            while(len(self.queue) != 0):
-                link = self.queue.pop().split("|")
-                self.__recordTerminalEvent("Batch: {}/{} - {}".format((-1*(len(self.queue)))+initial_length, initial_length, link))
-                #Thread(target=download, args=(link, self.__eventPB1), daemon=True).run()
-                download(link, self.__eventPB1)
-            self.textEdit.setText("")
-            self.__recordTerminalEvent("Operation(s) Successful.")
+            # Disable all Buttons till finished.
+            self.pushButton.setEnabled(False)
+            self.pushButton_2.setEnabled(False)
+            self.pushButton_3.setEnabled(False)
+            self.pushButton_4.setEnabled(False)
+            self.radioButton.setEnabled(False)
+            self.radioButton_2.setEnabled(False)
+            # Initiate Downloads - Works off of signals and slots
+            # We only want one thread running to achieve all the numbers needed
+            self.__recordTerminalEvent("Creating new thread for download queue")
+            self.thread = QThread()
+            self.worker = QWorker(self.queue)
+            self.worker.moveToThread(self.thread) # Move the worker to a new thread, exclusive
+            self.thread.started.connect(self.worker.run) # Start the thread calling the worker
+            self.worker.finished.connect(self.thread.quit) # Once the worker is finished quit the thread
+            self.worker.finished.connect(self.worker.deleteLater)
+            self.thread.finished.connect(self.thread.deleteLater)
+            self.worker.progress.connect(self.__eventPB1)
+            self.worker.logger.connect(self.__recordTerminalEvent)
+            self.thread.start()
+            self.__recordTerminalEvent("Successful Thread Creation.")
+            self.__recordTerminalEvent("Beginning to run task.")
+
+            self.thread.finished.connect(lambda: self.__eventP1_reset())
         except:
             self.__recordTerminalEvent("FAILED to download addresses from the queue.")
     
+    # Reset for __eventP1, Clear Queue
+    def __eventP1_reset(self):
+        self.pushButton.setEnabled(True)
+        self.pushButton_2.setEnabled(True)
+        self.pushButton_3.setEnabled(True)
+        self.pushButton_4.setEnabled(True)
+        self.radioButton.setEnabled(True)
+        self.radioButton_2.setEnabled(True)
+        self.textEdit.setText("")
+        self.__recordTerminalEvent("Operation(s) Successful.")
+
     def __eventP2(self):
         address = self.lineEdit.text()
         unique_str = "-1"
@@ -230,10 +297,10 @@ class Ui_MainWindow(object):
         self.__recordTerminalEvent("Checking for format choice.")
         if(self.radioButton.isChecked()):
             self.textEdit.setText("{}{}|{}".format(self.textEdit.toPlainText(), address, "MP3\n"))
-            self.__recordTerminalEvent("Pushing the new address.")
+            self.__recordTerminalEvent("Pushing new address.")
         elif(self.radioButton_2.isChecked()):
             self.textEdit.setText("{}{}|{}".format(self.textEdit.toPlainText(), address, "MP4\n"))
-            self.__recordTerminalEvent("Pushing the new address.")
+            self.__recordTerminalEvent("Pushing new address.")
         else:
             self.__recordTerminalEvent("Failed to identify type.")
     
@@ -250,23 +317,13 @@ class Ui_MainWindow(object):
     def __eventP4(self):
         self.__recordTerminalEvent("Clearing current queue list.")
         self.textEdit.setText("")
-
-    def __eventPB1(self, d):
-        if d['status'] == 'finished':
+    
+    def __eventPB1(self, f_prog, i_prog):
+        if(f_prog == (-1*1.0) and i_prog == 0):
             self.progressBar.reset()
-            self.__recordTerminalEvent("Download Complete.")
-        if d['status'] == 'downloading':
-            p = d['_percent_str']
-            p = p.replace('%','')
-            #print(d['eta'])
-            self.progressBar.setValue(float(p))
-            self.label_6.setText("ETA: "+str(d['eta'])+"s")
-
-    def _thread_task(self):
-        new_thread = QThread()
-        new_thread.start()
-
-'<iframe width="1314" height="748" src="https://www.youtube.com/embed/us2bq5vpQ9g" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>'
+        else:
+            self.progressBar.setValue(f_prog)
+            self.label_6.setText("ETA: " + str(i_prog) + " s")
 
 if __name__ == "__main__":
     import sys
