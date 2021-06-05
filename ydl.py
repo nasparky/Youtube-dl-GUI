@@ -2,13 +2,13 @@
 # For this purpose you may find the application location in your python scripts folder.
 
 import os
+import subprocess
 import youtube_dl as yt
 from collections import deque
 from datetime import datetime
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import QUrl, QObject, QThread, pyqtSignal
 from PyQt5.QtWebEngineWidgets import QWebEngineView
-    
 
 def changeName(filename):
     new_filename = ""
@@ -35,14 +35,16 @@ def download(link, progress_hook):
     ydl_opts = {}
     if(type == "MP3"):
         ydl_opts = {
-            'outtmpl': 'Exports/%(title)s - %(id)s.%(ext)s',
+            #'outtmpl': 'Exports/%(title)s - %(id)s.%(ext)s',
+            'outtmpl': 'Exports/%(title)s.%(ext)s',
             'format': 'bestaudio/bestaudio[ext=m4a]/best',
             'quiet' : True,
             'progress_hooks': [progress_hook],
         }
     elif(type == "MP4"):
         ydl_opts = {
-            'outtmpl': 'Exports/%(title)s - %(id)s.%(ext)s',
+            #'outtmpl': 'Exports/%(title)s - %(id)s.%(ext)s',
+            'outtmpl': 'Exports/%(title)s.%(ext)s',
             'format': 'bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best',
             'quiet' : True,
             'progress_hooks': [progress_hook],
@@ -181,6 +183,9 @@ class Ui_MainWindow(object):
         self.frame.setFrameShape(QtWidgets.QFrame.StyledPanel)
         self.frame.setFrameShadow(QtWidgets.QFrame.Raised)
         self.frame.setObjectName("frame")
+        self.pushButton_5 = QtWidgets.QPushButton(self.centralwidget)
+        self.pushButton_5.setGeometry(QtCore.QRect(590, 400, 181, 21))
+        self.pushButton_5.setObjectName("pushButton_5")
         MainWindow.setCentralWidget(self.centralwidget)
 
         # Web file renderer
@@ -208,12 +213,14 @@ class Ui_MainWindow(object):
         self.radioButton.setText(_translate("MainWindow", "MP3"))
         self.radioButton_2.setText(_translate("MainWindow", "MP4"))
         self.label_6.setText(_translate("MainWindow", "ETA: 0s"))
+        self.pushButton_5.setText(_translate("MainWindow", "Open location"))
 
     def triggerEventsUi(self):
         self.pushButton.clicked.connect(lambda: self.__eventP1())
         self.pushButton_2.clicked.connect(lambda: self.__eventP2())
         self.pushButton_3.clicked.connect(lambda: self.__eventP3())
         self.pushButton_4.clicked.connect(lambda: self.__eventP4())
+        self.pushButton_5.clicked.connect(lambda: self.__eventP5())
     
     def __recordTerminalEvent(self, text):
         new_text = "{}{} - {}".format(self.textEdit_2.toPlainText(), datetime.now().strftime("%H:%M:%S"), text+"\n")
@@ -317,6 +324,15 @@ class Ui_MainWindow(object):
     def __eventP4(self):
         self.__recordTerminalEvent("Clearing current queue list.")
         self.textEdit.setText("")
+
+    # NOTE THAT THE PATH WILL BE DIFFERENT BASED ON OS
+    def __eventP5(self):
+        try:
+            self.__recordTerminalEvent("Opening up export directory.")
+            path = os.getcwd()+"\Exports"
+            subprocess.Popen(f"explorer {os.getcwd()}\Exports")
+        except OSError as err:
+            self.__recordTerminalEvent("The directory either does not exist or is not responding")
     
     def __eventPB1(self, f_prog, i_prog):
         if(f_prog == (-1*1.0) and i_prog == 0):
