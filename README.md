@@ -2,10 +2,8 @@
 GUI made for the youtube_dl  module using pyqt5
 
 So this is technically still a Work in progress type of project to do, however I haven't gotten to the realization that this 
-GUI in particular lacks some of the necessary functionality such as using FFPMEG for audio conversion and the use of QThreads
-already created through the Qt library but wasn't used for such Qwidgets such as the functionality of the progress bar which
-lacks overall separate functionality away from the primary GUI event loop, so it will cause throttle and maybe freeze up on
-larger downloads usually above 10 MB if your connection is relatively well.
+GUI in particular lacks some of the necessary functionality such as using FFPMEG for audio conversion already assigned through the Qt library.
+This file does require that you have the FFPMEG Executable in your scripts directory as the module Youtube_DL is has an executable already in that same directory which requires this codec for mp3 conversion.
 
 Anyways here is the GUI for use, it provides a Queue specifically designed to work with batch loading and allows the ability to specfify the type
 whether it would be an audio or video file. This is not designed to spec as the options are just radio buttons. It also includes a terminal to
