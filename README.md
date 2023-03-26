@@ -1,2 +1,4 @@
 # Youtube-dl-GUI
-The GUI interface is self-explanatory so there is really no explaination needed for navigating.
+NO LONGER FUNCTIONAL!
+
+Qt6 GUI interface initially created to download video and audio content from Youtube's web service with the assistance of the yt-dlp library. 
